@@ -1,0 +1,19 @@
+# HDC single-class object detection dataset
+# Dataset format:
+# datasets/mydatasets/
+# ├── train/images
+# ├── train/labels
+# ├── val/images
+# └── val/labels
+
+# Dataset root directory (absolute path)
+path: E:/YOLO/yolo26/datasets/mydatasets
+
+# Image directories relative to "path"
+train: train/images
+val: val/images
+test: # optional
+
+# Classes (the class ID in each label TXT starts at 0)
+names:
+  0: hdc
