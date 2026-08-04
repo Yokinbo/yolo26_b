@@ -1,4 +1,4 @@
-"""验证训练完成的 YOLO26 目标检测模型并保存精度报告。
+"""验证训练完成的 YOLO26 目标检测模型并保存精度报告。.
 
 修改下方“用户验证参数配置区”后直接运行：
     python valid.py
@@ -49,7 +49,7 @@ EXIST_OK = False  # False：同名目录存在时自动创建带数字后缀的�
 
 
 def format_elapsed_time(seconds: float) -> str:
-    """将秒数格式化为 HH:MM:SS。"""
+    """将秒数格式化为 HH:MM:SS。."""
     total_seconds = int(seconds)
     hours, remainder = divmod(total_seconds, 3600)
     minutes, secs = divmod(remainder, 60)
@@ -57,7 +57,7 @@ def format_elapsed_time(seconds: float) -> str:
 
 
 def validate_inputs() -> None:
-    """在加载模型前检查路径和常用参数。"""
+    """在加载模型前检查路径和常用参数。."""
     required_files = {
         "模型权重": WEIGHTS_PATH,
         "数据集配置": DATASET_CONFIG,
@@ -79,7 +79,7 @@ def validate_inputs() -> None:
 
 
 def fixed_threshold_metrics(metrics) -> dict:
-    """汇总固定置信度、IoU=0.50 匹配条件下的 TP、FP、FN、P、R 和 F1。"""
+    """汇总固定置信度、IoU=0.50 匹配条件下的 TP、FP、FN、P、R 和 F1。."""
     image_metrics = metrics.box.image_metrics.values()
     tp = sum(item["tp"] for item in image_metrics)
     fp = sum(item["fp"] for item in metrics.box.image_metrics.values())
@@ -107,10 +107,8 @@ def optimal_f1_confidence(metrics) -> float:
     return float(metrics.box.px[index])
 
 
-def save_reports(
-    model: YOLO, metrics, threshold_metrics: dict, started_at: datetime, elapsed_seconds: float
-) -> Path:
-    """在 Ultralytics 实际验证目录中保存 JSON 和中文 TXT 报告。"""
+def save_reports(model: YOLO, metrics, threshold_metrics: dict, started_at: datetime, elapsed_seconds: float) -> Path:
+    """在 Ultralytics 实际验证目录中保存 JSON 和中文 TXT 报告。."""
     save_dir = Path(metrics.save_dir)
     model_parameters = sum(parameter.numel() for parameter in model.model.parameters())
     speed = {name: float(value) for name, value in metrics.speed.items()}
@@ -183,7 +181,7 @@ def save_reports(
 
 
 def main() -> None:
-    """加载最佳权重，在验证集计算并保存检测精度指标。"""
+    """加载最佳权重，在验证集计算并保存检测精度指标。."""
     validate_inputs()
     started_at = datetime.now().astimezone()
     start_time = time.perf_counter()

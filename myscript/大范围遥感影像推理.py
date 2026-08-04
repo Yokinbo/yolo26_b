@@ -1,4 +1,4 @@
-"""YOLO26-S 火电厂大范围 RGB GeoTIFF 正式推理脚本。
+r"""YOLO26-S 火电厂大范围 RGB GeoTIFF 正式推理脚本。.
 
 默认推理流程与 D-FINE 正式大图推理脚本保持一致：
 
@@ -17,7 +17,7 @@
 使用方法：
 
 1. 修改下方“用户配置区”的 INPUT_TIF、WEIGHTS_PATH 和 OUTPUT_DIR。
-2. 在当前 dfine 环境、YOLO26 仓库根目录执行：
+2. 在当前 define 环境、YOLO26 仓库根目录执行：
 
        python myscript/大范围遥感影像推理.py
 
@@ -43,7 +43,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Sequence
 
 import numpy as np
 import torch
@@ -77,13 +77,17 @@ except ImportError:
 # =============================================================================
 
 # 待检测的镇级/县级 RGB GeoTIFF 绝对路径，至少包含 3 个波段。
-INPUT_TIF = Path(r"F:\3能源金三角基础设施识别\金三角1.88米tif\榆林市\神木市\镇级tif影像\锦界镇\锦界镇1.86米tif\Level16\锦界镇1.86.tif")
+INPUT_TIF = Path(
+    r"F:\3能源金三角基础设施识别\金三角1.88米tif\榆林市\神木市\镇级tif影像\锦界镇\锦界镇1.86米tif\Level16\锦界镇1.86.tif"
+)
 
 # 推荐使用 valid.py 验证过的 best_map50.pt；最终置信度应采用大图滑窗验证后确定的值。
 WEIGHTS_PATH = Path(r"E:\YOLO\yolo26\runs\train\yolo26m_240epochs_640_第四版数据集793_map50\weights\best_map50.pt")
 
 # 每次正式推理使用独立目录，避免覆盖其他模型或参数的结果。
-OUTPUT_DIR = Path(r"F:\3能源金三角基础设施识别\金三角1.88米tif\榆林市\神木市\镇级tif影像\锦界镇\yolo26m_第四版数据集推测结果\置信度0.2")
+OUTPUT_DIR = Path(
+    r"F:\3能源金三角基础设施识别\金三角1.88米tif\榆林市\神木市\镇级tif影像\锦界镇\yolo26m_第四版数据集推测结果\置信度0.2"
+)
 
 # Shapefile 输出名称，只填写文件名并保留 .shp 后缀；保存位置由 OUTPUT_DIR 决定。
 SHP_OUTPUT_NAME = "锦界镇_yolo26m_640_793_map50_置信度0.2.shp"
@@ -181,7 +185,7 @@ class Detection:
         return np.asarray([self.x1, self.y1, self.x2, self.y2], dtype=np.float64)
 
     @property
-    def center(self) -> Tuple[float, float]:
+    def center(self) -> tuple[float, float]:
         return 0.5 * (self.x1 + self.x2), 0.5 * (self.y1 + self.y2)
 
 
@@ -199,9 +203,7 @@ def validate_config(input_tif: Path, weights: Path) -> None:
     """Validate paths and parameters before allocating the model."""
     require_runtime_dependencies()
     missing = [
-        f"{name}: {path}"
-        for name, path in (("输入 GeoTIFF", input_tif), ("模型权重", weights))
-        if not path.is_file()
+        f"{name}: {path}" for name, path in (("输入 GeoTIFF", input_tif), ("模型权重", weights)) if not path.is_file()
     ]
     if missing:
         raise FileNotFoundError("以下路径未正确填写：\n" + "\n".join(missing))
@@ -232,7 +234,7 @@ def validate_config(input_tif: Path, weights: Path) -> None:
         raise RuntimeError("DEVICE 设置为 GPU，但当前 PyTorch 没有检测到可用 CUDA。")
 
 
-def start_positions(length: int, tile_size: int, stride: int) -> List[int]:
+def start_positions(length: int, tile_size: int, stride: int) -> list[int]:
     """Generate full-coverage starts and explicitly include the final edge."""
     if length <= tile_size:
         return [0]
@@ -265,14 +267,14 @@ def box_iou_one_to_many(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
     return intersection / np.maximum(area_a + area_b - intersection, 1e-12)
 
 
-def global_nms(detections: Sequence[Detection], iou_threshold: float) -> List[Detection]:
+def global_nms(detections: Sequence[Detection], iou_threshold: float) -> list[Detection]:
     """Perform class-agnostic NMS in full-raster pixel coordinates."""
     if not detections:
         return []
     boxes = np.stack([det.box for det in detections])
     scores = np.asarray([det.score for det in detections])
     order = scores.argsort()[::-1]
-    keep: List[int] = []
+    keep: list[int] = []
     while order.size:
         current = int(order[0])
         keep.append(current)
@@ -284,7 +286,7 @@ def global_nms(detections: Sequence[Detection], iou_threshold: float) -> List[De
     return [detections[index] for index in keep]
 
 
-def local_boundary_properties(local_box: Sequence[float], size: int) -> Tuple[float, float]:
+def local_boundary_properties(local_box: Sequence[float], size: int) -> tuple[float, float]:
     """Return boundary risk and Hann-like center reliability."""
     x1, y1, x2, y2 = [float(value) for value in local_box]
     clearance = max(0.0, min(x1, y1, size - x2, size - y2))
@@ -317,7 +319,7 @@ def convert_patch_to_uint8(patch: np.ndarray) -> np.ndarray:
     return np.clip((patch.astype(np.float32) - minimum) / scale * 255.0, 0, 255).astype(np.uint8)
 
 
-def read_rgb_patch(src: Any, spec: WindowSpec) -> Tuple[np.ndarray, float]:
+def read_rgb_patch(src: Any, spec: WindowSpec) -> tuple[np.ndarray, float]:
     """Read a boundless RGB window as CHW uint8 and calculate its valid ratio."""
     window = Window(spec.x0, spec.y0, spec.size, spec.size)
     patch = src.read([1, 2, 3], window=window, boundless=True, fill_value=0)
@@ -366,15 +368,12 @@ def infer_batch(
     views: Sequence[str],
     raster_width: int,
     raster_height: int,
-) -> List[Detection]:
+) -> list[Detection]:
     """Run YOLO on one in-memory batch and return global-pixel boxes."""
-    detections: List[Detection] = []
+    detections: list[Detection] = []
     for view in views:
         # Ultralytics treats numpy input as BGR. Rasterio returns RGB, so reverse channels here.
-        sources = [
-            np.transpose(transform_patch(patch, view), (1, 2, 0))[:, :, ::-1].copy()
-            for patch in patches
-        ]
+        sources = [np.transpose(transform_patch(patch, view), (1, 2, 0))[:, :, ::-1].copy() for patch in patches]
         results = model.predict(
             source=sources,
             imgsz=MODEL_IMAGE_SIZE,
@@ -425,12 +424,12 @@ def infer_batch(
 
 def flush_window_batch(
     model: YOLO,
-    patches: List[np.ndarray],
-    specs: List[WindowSpec],
+    patches: list[np.ndarray],
+    specs: list[WindowSpec],
     views: Sequence[str],
     raster_width: int,
     raster_height: int,
-) -> List[Detection]:
+) -> list[Detection]:
     """Infer and clear an accumulated batch."""
     if not patches:
         return []
@@ -442,21 +441,19 @@ def flush_window_batch(
 
 def format_duration(seconds: float) -> str:
     """Format elapsed time for terminal output."""
-    total = max(0, int(round(seconds)))
+    total = max(0, round(seconds))
     hours, remainder = divmod(total, 3600)
     minutes, secs = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
-def print_progress(
-    label: str, completed: int, total: int, start_time: float, detail: str = ""
-) -> None:
+def print_progress(label: str, completed: int, total: int, start_time: float, detail: str = "") -> None:
     """Print an in-place progress bar with ETA."""
     completed = min(max(completed, 0), total)
     elapsed = max(time.perf_counter() - start_time, 1e-6)
     ratio = completed / total if total else 1.0
     eta = elapsed * (total - completed) / max(completed, 1)
-    filled = int(round(24 * ratio))
+    filled = round(24 * ratio)
     bar = "#" * filled + "-" * (24 - filled)
     suffix = f" | {detail}" if detail else ""
     print(
@@ -467,15 +464,15 @@ def print_progress(
     )
 
 
-def run_base_windows(src: Any, model: YOLO) -> Tuple[List[Detection], int, int]:
+def run_base_windows(src: Any, model: YOLO) -> tuple[list[Detection], int, int]:
     """Run the 512/256 overlapping base grid."""
     xs = start_positions(src.width, BASE_TILE_SIZE, OVERLAP_STRIDE)
     ys = start_positions(src.height, BASE_TILE_SIZE, OVERLAP_STRIDE)
     total = len(xs) * len(ys)
     used = skipped = 0
-    detections: List[Detection] = []
-    patches: List[np.ndarray] = []
-    specs: List[WindowSpec] = []
+    detections: list[Detection] = []
+    patches: list[np.ndarray] = []
+    specs: list[WindowSpec] = []
     start_time = time.perf_counter()
     interval = max(1, total // 100)
     print(f"[基础滑窗] 总窗口 {total} | tile={BASE_TILE_SIZE} | stride={OVERLAP_STRIDE}")
@@ -491,11 +488,7 @@ def run_base_windows(src: Any, model: YOLO) -> Tuple[List[Detection], int, int]:
                 specs.append(spec)
                 used += 1
                 if len(patches) >= BATCH_SIZE:
-                    detections.extend(
-                        flush_window_batch(
-                            model, patches, specs, ("original",), src.width, src.height
-                        )
-                    )
+                    detections.extend(flush_window_batch(model, patches, specs, ("original",), src.width, src.height))
             completed = row * len(xs) + col + 1
             if completed % interval == 0 or completed == total:
                 print_progress(
@@ -506,9 +499,7 @@ def run_base_windows(src: Any, model: YOLO) -> Tuple[List[Detection], int, int]:
                     f"有效 {used} | 跳过 {skipped} | 候选 {len(detections)}",
                 )
 
-    detections.extend(
-        flush_window_batch(model, patches, specs, ("original",), src.width, src.height)
-    )
+    detections.extend(flush_window_batch(model, patches, specs, ("original",), src.width, src.height))
     print_progress(
         "[基础滑窗]",
         total,
@@ -520,9 +511,7 @@ def run_base_windows(src: Any, model: YOLO) -> Tuple[List[Detection], int, int]:
     return detections, used, skipped
 
 
-def select_refine_windows(
-    base_detections: Sequence[Detection], width: int, height: int
-) -> List[WindowSpec]:
+def select_refine_windows(base_detections: Sequence[Detection], width: int, height: int) -> list[WindowSpec]:
     """Choose spatially de-duplicated edge/uncertain candidates for context refinement."""
     del width, height  # Boundless raster reading handles windows close to outer raster edges.
     candidates = [
@@ -535,20 +524,15 @@ def select_refine_windows(
         )
     ]
     candidates = global_nms(candidates, REFINE_TRIGGER_NMS_IOU)
-    candidates.sort(
-        key=lambda det: det.score * (0.5 + 0.5 * det.boundary_risk), reverse=True
-    )
+    candidates.sort(key=lambda det: det.score * (0.5 + 0.5 * det.boundary_risk), reverse=True)
     half = REFINE_CONTEXT_SIZE // 2
     minimum_center_distance = max(32, BASE_TILE_SIZE // 4)
-    windows: List[WindowSpec] = []
-    used_centers: List[Tuple[int, int]] = []
+    windows: list[WindowSpec] = []
+    used_centers: list[tuple[int, int]] = []
     for index, det in enumerate(candidates[:MAX_REFINE_WINDOWS]):
         cx, cy = det.center
-        center = int(round(cx)), int(round(cy))
-        if any(
-            math.hypot(center[0] - old[0], center[1] - old[1]) < minimum_center_distance
-            for old in used_centers
-        ):
+        center = round(cx), round(cy)
+        if any(math.hypot(center[0] - old[0], center[1] - old[1]) < minimum_center_distance for old in used_centers):
             continue
         used_centers.append(center)
         windows.append(
@@ -563,17 +547,15 @@ def select_refine_windows(
     return windows
 
 
-def run_refine_windows(
-    src: Any, model: YOLO, windows: Sequence[WindowSpec]
-) -> List[Detection]:
+def run_refine_windows(src: Any, model: YOLO, windows: Sequence[WindowSpec]) -> list[Detection]:
     """Run original and selective-TTA views for refinement windows."""
     if not windows:
         print("[扩展复检] 没有需要复检的候选窗口。")
         return []
     views = ("original", *SELECTIVE_TTA_MODES)
-    detections: List[Detection] = []
-    patches: List[np.ndarray] = []
-    specs: List[WindowSpec] = []
+    detections: list[Detection] = []
+    patches: list[np.ndarray] = []
+    specs: list[WindowSpec] = []
     start_time = time.perf_counter()
     total = len(windows)
     interval = max(1, total // 100)
@@ -585,9 +567,7 @@ def run_refine_windows(
             patches.append(patch)
             specs.append(spec)
             if len(patches) >= BATCH_SIZE:
-                detections.extend(
-                    flush_window_batch(model, patches, specs, views, src.width, src.height)
-                )
+                detections.extend(flush_window_batch(model, patches, specs, views, src.width, src.height))
         if index % interval == 0 or index == total:
             print_progress(
                 "[扩展复检]",
@@ -597,9 +577,7 @@ def run_refine_windows(
                 f"候选 {len(detections)} | 视图 {len(views)}",
             )
 
-    detections.extend(
-        flush_window_batch(model, patches, specs, views, src.width, src.height)
-    )
+    detections.extend(flush_window_batch(model, patches, specs, views, src.width, src.height))
     print_progress(
         "[扩展复检]",
         total,
@@ -611,9 +589,7 @@ def run_refine_windows(
     return detections
 
 
-def cluster_detections(
-    detections: Sequence[Detection], threshold: float
-) -> List[List[int]]:
+def cluster_detections(detections: Sequence[Detection], threshold: float) -> list[list[int]]:
     """Cluster overlapping boxes using a spatial hash and union-find."""
     count = len(detections)
     if count == 0:
@@ -633,17 +609,13 @@ def cluster_detections(
 
     boxes = np.stack([det.box for det in detections])
     bucket_size = float(BASE_TILE_SIZE)
-    buckets: Dict[Tuple[int, int], List[int]] = {}
+    buckets: dict[tuple[int, int], list[int]] = {}
     for index, box in enumerate(boxes):
         min_col = math.floor(box[0] / bucket_size)
         max_col = math.floor(max(box[0], box[2] - 1e-6) / bucket_size)
         min_row = math.floor(box[1] / bucket_size)
         max_row = math.floor(max(box[1], box[3] - 1e-6) / bucket_size)
-        keys = [
-            (row, col)
-            for row in range(min_row, max_row + 1)
-            for col in range(min_col, max_col + 1)
-        ]
+        keys = [(row, col) for row in range(min_row, max_row + 1) for col in range(min_col, max_col + 1)]
         possible = sorted({old for key in keys for old in buckets.get(key, [])})
         if possible:
             overlaps = box_iou_one_to_many(box, boxes[np.asarray(possible, dtype=int)])
@@ -652,15 +624,15 @@ def cluster_detections(
         for key in keys:
             buckets.setdefault(key, []).append(index)
 
-    groups: Dict[int, List[int]] = {}
+    groups: dict[int, list[int]] = {}
     for index in range(count):
         groups.setdefault(find(index), []).append(index)
     return list(groups.values())
 
 
-def brdcf_fusion(detections: Sequence[Detection]) -> List[Detection]:
+def brdcf_fusion(detections: Sequence[Detection]) -> list[Detection]:
     """Fuse cross-window boxes using boundary reliability and box consistency."""
-    fused: List[Detection] = []
+    fused: list[Detection] = []
     for cluster in cluster_detections(detections, FUSION_IOU):
         members = [detections[index] for index in cluster]
         boxes = np.stack([det.box for det in members])
@@ -675,12 +647,8 @@ def brdcf_fusion(detections: Sequence[Detection]) -> List[Detection]:
             )
         scores = np.asarray([det.score for det in members], dtype=np.float64)
         centers = np.asarray([det.center_weight for det in members], dtype=np.float64)
-        consistency_weight = FUSION_CONSISTENCY_FLOOR + (
-            1.0 - FUSION_CONSISTENCY_FLOOR
-        ) * consistency
-        weights = np.maximum(
-            np.power(scores, FUSION_GAMMA) * centers * consistency_weight, 1e-12
-        )
+        consistency_weight = FUSION_CONSISTENCY_FLOOR + (1.0 - FUSION_CONSISTENCY_FLOOR) * consistency
+        weights = np.maximum(np.power(scores, FUSION_GAMMA) * centers * consistency_weight, 1e-12)
         fused_box = np.sum(boxes * weights[:, None], axis=0) / weights.sum()
         fused_score = float(np.sum(scores * weights) / weights.sum())
         best = members[int(np.argmax(scores))]
@@ -701,18 +669,14 @@ def brdcf_fusion(detections: Sequence[Detection]) -> List[Detection]:
     return fused
 
 
-def pixel_box_to_world_polygon(
-    box: Sequence[float], transform: Any
-) -> List[List[float]]:
+def pixel_box_to_world_polygon(box: Sequence[float], transform: Any) -> list[list[float]]:
     """Convert a pixel box to a georeferenced polygon, including rotated affine transforms."""
     x1, y1, x2, y2 = [float(value) for value in box]
     pixels = ((x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1))
     return [[float(x), float(y)] for x, y in (transform * point for point in pixels)]
 
 
-def save_predictions_csv(
-    path: Path, detections: Sequence[Detection], transform: Any
-) -> None:
+def save_predictions_csv(path: Path, detections: Sequence[Detection], transform: Any) -> None:
     """Save pixel boxes and georeferenced centers."""
     with path.open("w", newline="", encoding="utf-8-sig") as file:
         writer = csv.writer(file)
@@ -750,9 +714,7 @@ def save_predictions_csv(
             )
 
 
-def save_predictions_geojson(
-    path: Path, detections: Sequence[Detection], transform: Any, crs: Any
-) -> None:
+def save_predictions_geojson(path: Path, detections: Sequence[Detection], transform: Any, crs: Any) -> None:
     """Save polygons in the source raster coordinate system."""
     features = [
         {
@@ -771,15 +733,13 @@ def save_predictions_geojson(
         }
         for index, det in enumerate(detections, start=1)
     ]
-    payload: Dict[str, Any] = {"type": "FeatureCollection", "features": features}
+    payload: dict[str, Any] = {"type": "FeatureCollection", "features": features}
     if crs is not None:
         payload["crs"] = {"type": "name", "properties": {"name": crs.to_string()}}
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def save_optional_vectors(
-    result_dir: Path, detections: Sequence[Detection], transform: Any, crs: Any
-) -> None:
+def save_optional_vectors(result_dir: Path, detections: Sequence[Detection], transform: Any, crs: Any) -> None:
     """Write GPKG/SHP when geopandas is available."""
     if not (WRITE_GPKG or WRITE_SHP):
         return
@@ -812,8 +772,8 @@ def save_optional_vectors(
 def save_preview(src: Any, path: Path, detections: Sequence[Detection]) -> None:
     """Save a downsampled overview with red detection boxes."""
     scale = min(1.0, PREVIEW_MAX_SIZE / max(src.width, src.height))
-    width = max(1, int(round(src.width * scale)))
-    height = max(1, int(round(src.height * scale)))
+    width = max(1, round(src.width * scale))
+    height = max(1, round(src.height * scale))
     rgb = src.read(
         [1, 2, 3],
         out_shape=(3, height, width),
@@ -841,7 +801,7 @@ def synchronize_cuda() -> None:
         torch.cuda.synchronize()
 
 
-def save_summary(path: Path, summary: Dict[str, Any]) -> None:
+def save_summary(path: Path, summary: dict[str, Any]) -> None:
     """Save a concise human-readable application report."""
     lines = [
         "YOLO26-S 火电厂大范围遥感影像正式应用报告",
@@ -861,10 +821,7 @@ def save_summary(path: Path, summary: Dict[str, Any]) -> None:
         f"基础低阈值候选框数: {summary['base_candidate_boxes']}",
         f"复检/TTA低阈值候选框数: {summary['refine_candidate_boxes']}",
         f"BR-DCF融合后候选数: {summary['fused_candidate_boxes']}",
-        (
-            f"最终输出目标数(conf≥{FINAL_CONFIDENCE:.2f}, "
-            f"support≥{MIN_SUPPORT_COUNT}): {summary['exported_boxes']}"
-        ),
+        (f"最终输出目标数(conf≥{FINAL_CONFIDENCE:.2f}, support≥{MIN_SUPPORT_COUNT}): {summary['exported_boxes']}"),
         "",
         f"开始时间: {summary['start_time']}",
         f"结束时间: {summary['end_time']}",
@@ -876,9 +833,7 @@ def save_summary(path: Path, summary: Dict[str, Any]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def run_large_raster_inference(
-    input_tif: Path, weights: Path, output_dir: Path
-) -> None:
+def run_large_raster_inference(input_tif: Path, weights: Path, output_dir: Path) -> None:
     """Run the complete large-raster application workflow."""
     validate_config(input_tif, weights)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -903,10 +858,7 @@ def run_large_raster_inference(
     with rasterio.open(input_tif) as src:
         if src.count < 3:
             raise ValueError("输入 GeoTIFF 至少需要 3 个 RGB 波段。")
-        print(
-            f"[影像] size={src.width}×{src.height} | bands={src.count} | "
-            f"dtype={src.dtypes[0]} | CRS={src.crs}"
-        )
+        print(f"[影像] size={src.width}×{src.height} | bands={src.count} | dtype={src.dtypes[0]} | CRS={src.crs}")
 
         synchronize_cuda()
         inference_start = time.perf_counter()
@@ -921,9 +873,7 @@ def run_large_raster_inference(
         print(f"[BR-DCF] 融合完成，得到 {len(fused_detections)} 个低阈值候选。")
 
         final_detections = [
-            det
-            for det in fused_detections
-            if det.score >= FINAL_CONFIDENCE and det.support_count >= MIN_SUPPORT_COUNT
+            det for det in fused_detections if det.score >= FINAL_CONFIDENCE and det.support_count >= MIN_SUPPORT_COUNT
         ]
         final_detections.sort(key=lambda det: det.score, reverse=True)
 
@@ -938,7 +888,7 @@ def run_large_raster_inference(
         if WRITE_PREVIEW:
             save_preview(src, output_dir / "火电厂检测预览图.png", final_detections)
 
-        summary: Dict[str, Any] = {
+        summary: dict[str, Any] = {
             "input_tif": str(input_tif),
             "weights": str(weights),
             "output_dir": str(output_dir),
