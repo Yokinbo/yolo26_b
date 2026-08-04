@@ -1,6 +1,6 @@
-"""逐张预测小幅 RGB TIFF 验证图像，并输出漏检和误检清单。
+"""逐张预测小幅 RGB TIFF 验证图像，并输出漏检和误检清单。.
 
-在仓库根目录、dfine 环境执行：
+在仓库根目录、define 环境执行：
 
     python myscript/切片推理预测.py
 
@@ -39,14 +39,20 @@ except ImportError:
 WEIGHTS_PATH = Path(r"E:\YOLO\yolo26\runs\train\yolo26s_200epochs_640_训练集708_map50\weights\best_map50.pt")
 
 # 将所有待检查的小 TIFF 放在此目录；支持子文件夹。
-INPUT_DIR = Path(r"F:\3能源金三角基础设施识别\火力发电厂\优化不同数据集版本\减少不像的图_第1版\训练集优化掉的图片与标签\金三角内优化掉的\图片")
+INPUT_DIR = Path(
+    r"F:\3能源金三角基础设施识别\火力发电厂\优化不同数据集版本\减少不像的图_第1版\训练集优化掉的图片与标签\金三角内优化掉的\图片"
+)
 
 # 验证集 YOLO 标签目录。保留该设置可自动识别漏检和误检；不需要标签时设为 None。
-LABEL_DIR: Path | None = Path(r"F:\3能源金三角基础设施识别\火力发电厂\优化不同数据集版本\减少不像的图_第1版\训练集优化掉的图片与标签\金三角内优化掉的\标签")
-#LABEL_DIR = None
+LABEL_DIR: Path | None = Path(
+    r"F:\3能源金三角基础设施识别\火力发电厂\优化不同数据集版本\减少不像的图_第1版\训练集优化掉的图片与标签\金三角内优化掉的\标签"
+)
+# LABEL_DIR = None
 
 # 每次实验使用独立输出目录，名称应包含所用置信度。
-OUTPUT_DIR = Path(r"F:\3能源金三角基础设施识别\火力发电厂\优化不同数据集版本\减少不像的图_第1版\训练集优化掉的图片与标签\test可删\yolo26_map50_置信度30")
+OUTPUT_DIR = Path(
+    r"F:\3能源金三角基础设施识别\火力发电厂\优化不同数据集版本\减少不像的图_第1版\训练集优化掉的图片与标签\test可删\yolo26_map50_置信度30"
+)
 
 # 先使用 valid.py 报告的最优 F1 置信度约 0.30；可按实验改为 0.20、0.25、0.35 等。
 CONFIDENCE = 0.30
@@ -240,19 +246,14 @@ def main() -> None:
                     "y2": f"{y2:.2f}",
                 }
             )
-        print(
-            f"[{index}/{len(image_paths)}] {relative_path} | "
-            f"预测={len(predictions)} TP/FP/FN={tp}/{fp}/{fn}"
-        )
+        print(f"[{index}/{len(image_paths)}] {relative_path} | 预测={len(predictions)} TP/FP/FN={tp}/{fp}/{fn}")
 
     with (OUTPUT_DIR / "逐图统计.csv").open("w", newline="", encoding="utf-8-sig") as file:
         writer = csv.DictWriter(file, fieldnames=["image", "targets", "predictions", "tp", "fp", "fn"])
         writer.writeheader()
         writer.writerows(per_image_rows)
     with (OUTPUT_DIR / "检测框.csv").open("w", newline="", encoding="utf-8-sig") as file:
-        writer = csv.DictWriter(
-            file, fieldnames=["image", "class_id", "confidence", "x1", "y1", "x2", "y2"]
-        )
+        writer = csv.DictWriter(file, fieldnames=["image", "class_id", "confidence", "x1", "y1", "x2", "y2"])
         writer.writeheader()
         writer.writerows(detection_rows)
     for name, images in (
