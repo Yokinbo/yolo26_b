@@ -12,7 +12,7 @@ path: E:/YOLO/yolo26/datasets/mydatasets
 # Image directories relative to "path"
 train: train/images
 val: val/images
-test: # optional
+test: test/images
 
 # Classes (the class ID in each label TXT starts at 0)
 names:

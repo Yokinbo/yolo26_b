@@ -8,7 +8,14 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from experiment_config import MODEL_IMAGE_SIZE
+from experiment_config import (
+    BASE_MODEL_CONFIG_PATH,
+    MODEL_CONFIG_PATH,
+    MODEL_IMAGE_SIZE,
+    MODEL_TAG,
+    PRETRAINED_WEIGHT_PATH,
+    ensure_loaded_model_size,
+)
 from ultralytics import YOLO
 from ultralytics.utils import LOGGER
 from ultralytics.utils.torch_utils import strip_optimizer
@@ -24,10 +31,10 @@ DATASET_CONFIG = Path(r"E:\YOLO\yolo26\ultralytics\cfg\datasets\a_myhdc.yaml")
 # False：普通微调，结构直接来自 PRETRAINED_WEIGHTS，MODEL_CONFIG 不参与加载。
 # True：模型优化实验，先按此 YAML 创建结构，再加载 PRETRAINED_WEIGHTS 中形状匹配的参数。
 USE_CUSTOM_MODEL_CONFIG = False
-MODEL_CONFIG = Path(r"E:\YOLO\yolo26\ultralytics\cfg\models\26\yolo26.yaml")
+MODEL_CONFIG = MODEL_CONFIG_PATH
 
-# 预训练权重可改为 yolo26m.pt；初步训练和显存较小时建议先使用 yolo26s.pt。
-PRETRAINED_WEIGHTS = Path(r"E:\YOLO\yolo26\weights\yolo26s.pt")
+# 由 experiment_config.py 的 MODEL_SIZE 在 yolo26s.pt/yolo26m.pt 之间切换。
+PRETRAINED_WEIGHTS = PRETRAINED_WEIGHT_PATH
 
 # 基础训练参数
 EPOCHS = 240
@@ -53,9 +60,12 @@ MULTI_SCALE = 0.0  # 例如 0.5 表示在 IMAGE_SIZE 的 ±50% 范围内多尺�
 FRACTION = 1.0  # 使用训练集的比例，快速测试可改为 0.1
 DETERMINISTIC = True
 
-# 输出配置（绝对路径）
+# 训练结果输出根目录：请直接填写 Windows 绝对路径。
 PROJECT = Path(r"E:\YOLO\yolo26\runs\train")
-RUN_NAME = "yolo26m_240epochs_640_第四版数据集793_map50"
+# RUN_NAME：本次实验的输出子目录名，最终结果保存在 PROJECT / RUN_NAME。
+# 可按数据集版本、模型或训练轮数自定义；它不会改变模型结构和精度，不要填写绝对路径。
+# train.py 不生成论文最终对比表，因此不需要 PAPER_MODEL_NAME。
+RUN_NAME = "第四版数据集793_map50"
 SAVE_PERIOD = 10  # 每隔多少个 epoch 额外保存一次权重；-1 表示禁用
 PLOTS = True
 
@@ -124,7 +134,8 @@ def validate_training_config() -> Path:
 
     required_files = {"数据集配置文件": DATASET_CONFIG}
     if USE_CUSTOM_MODEL_CONFIG:
-        required_files["模型配置文件"] = MODEL_CONFIG
+        # MODEL_CONFIG 是 yolo26s/m.yaml 复合缩放别名，实际文件是 yolo26.yaml。
+        required_files["模型基础配置文件"] = BASE_MODEL_CONFIG_PATH
     missing = [f"{name}：{path}" for name, path in required_files.items() if not path.is_file()]
     if missing:
         raise FileNotFoundError("以下配置文件不存在：\n" + "\n".join(missing))
@@ -152,6 +163,7 @@ def main() -> None:
 
     print("\n========== YOLO26 训练配置 ==========")
     print(f"数据集配置：{DATASET_CONFIG}")
+    print(f"共享模型选择：{MODEL_TAG}")
     print(f"模型来源：{model_source}")
     print(f"输入尺寸：{IMAGE_SIZE} | Batch：{BATCH_SIZE} | Epochs：{EPOCHS}")
     print(f"设备：{DEVICE} | AMP：{AMP} | Workers：{WORKERS}")
@@ -164,6 +176,8 @@ def main() -> None:
         model = YOLO(MODEL_CONFIG).load(PRETRAINED_WEIGHTS)
     else:
         model = YOLO(PRETRAINED_WEIGHTS)
+
+    ensure_loaded_model_size(model)
 
     model.add_callback("on_model_save", save_best_map50)
     model.add_callback("on_train_end", finalize_best_map50)

@@ -9,7 +9,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from experiment_config import MODEL_IMAGE_SIZE
+from experiment_config import (
+    MODEL_IMAGE_SIZE,
+    MODEL_TAG,
+    ensure_loaded_model_size,
+)
 
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
@@ -51,9 +55,14 @@ EFFICIENCY_CONFIDENCE = 0.50
 FPS_WARMUP_ITERS = 10
 FPS_TEST_ITERS = 100
 
-PROJECT = Path(r"G:\b\模型训练结果\yolo26\验证精度结果\s_640")
-RUN_NAME = "yolo26s_640_map50"
-PAPER_MODEL_NAME = "YOLO26s-640"
+# 验证结果输出根目录：请直接填写 Windows 绝对路径。
+PROJECT = Path(r"E:\YOLO\yolo26\runs\val")
+# RUN_NAME：本次验证的输出子目录名，最终结果保存在 PROJECT / RUN_NAME。
+# 可自定义且不影响精度计算；不要填写绝对路径。EXIST_OK=False 时重名会自动加 -2、-3。
+RUN_NAME = "第四版数据集793_map50"
+# PAPER_MODEL_NAME：只用于输出报告/论文表格中的 Model 名称，不会选择模型或权重。
+# 可自定义，但必须如实对应已加载权重的规模和 IMAGE_SIZE，防止论文表格误标。
+PAPER_MODEL_NAME = "yolo26s_512"
 EXIST_OK = False
 # =============================================================================
 
@@ -350,16 +359,15 @@ def save_paper_metrics(
 
 
 def save_reports(
-    model: YOLO,
     metrics,
     confidence_metrics: dict,
     speed_metrics: dict,
     flops_g: float,
+    model_parameters: int,
     started_at: datetime,
     elapsed_seconds: float,
 ) -> Path:
     save_dir = Path(metrics.save_dir)
-    model_parameters = sum(parameter.numel() for parameter in model.model.parameters())
     framework_speed = {name: float(value) for name, value in metrics.speed.items()}
     coco_metrics = {
         "mAP@0.5:0.95": float(metrics.box.map),
@@ -445,6 +453,7 @@ def main() -> None:
     start_time = time.perf_counter()
 
     print("\n========== YOLO26 模型验证配置 ==========")
+    print(f"共享模型选择：{MODEL_TAG}")
     print(f"模型权重：{WEIGHTS_PATH}")
     print(f"数据配置：{DATASET_CONFIG}")
     print(f"输入尺寸：{IMAGE_SIZE} | Batch：{VAL_BATCH_SIZE} | 设备：{DEVICE}")
@@ -452,7 +461,9 @@ def main() -> None:
     print(f"输出目录：{PROJECT / RUN_NAME}\n")
 
     model = YOLO(WEIGHTS_PATH)
-    # 必须在验证器融合 Conv/BN 之前计算，保证所有模型采用未融合原始结构口径。
+    ensure_loaded_model_size(model)
+    # 验证器会就地融合 Conv/BN，因此参数量和 FLOPs 必须在评估前固定。
+    model_parameters = sum(parameter.numel() for parameter in model.model.parameters())
     flops_g = float(get_flops(model.model, imgsz=IMAGE_SIZE))
     metrics = model.val(
         validator=ConfidenceSweepValidator,
@@ -479,11 +490,11 @@ def main() -> None:
     speed_metrics = benchmark_single_image_fps(model, validator)
     elapsed_seconds = time.perf_counter() - start_time
     save_dir = save_reports(
-        model,
         metrics,
         confidence_metrics,
         speed_metrics,
         flops_g,
+        model_parameters,
         started_at,
         elapsed_seconds,
     )
@@ -507,7 +518,7 @@ def main() -> None:
     print(f"F1-score：{best['f1']:.6f}")
     print(f"TP / FP / FN：{best['TPs']} / {best['FPs']} / {best['FNs']}")
     print("\n========== 效率指标 ==========")
-    print(f"参数量：{sum(p.numel() for p in model.model.parameters()) / 1e6:.3f} M")
+    print(f"参数量：{model_parameters / 1e6:.3f} M")
     print(f"FLOPs：{flops_g:.3f} G" if flops_g > 0 else "FLOPs：N/A（请安装 ultralytics-thop）")
     for name, value in speed_metrics.items():
         print(f"{name}：{value:.4f}")
