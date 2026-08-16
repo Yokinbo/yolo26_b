@@ -27,7 +27,7 @@ USE_CUSTOM_MODEL_CONFIG = False
 MODEL_CONFIG = Path(r"E:\YOLO\yolo26\ultralytics\cfg\models\26\yolo26.yaml")
 
 # 预训练权重可改为 yolo26m.pt；初步训练和显存较小时建议先使用 yolo26s.pt。
-PRETRAINED_WEIGHTS = Path(r"E:\YOLO\yolo26\weights\yolo26m.pt")
+PRETRAINED_WEIGHTS = Path(r"E:\YOLO\yolo26\weights\yolo26s.pt")
 
 # 基础训练参数
 EPOCHS = 240
