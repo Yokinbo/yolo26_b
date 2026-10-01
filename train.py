@@ -1,4 +1,4 @@
-"""训练本地 YOLO 格式目标检测数据集。
+"""训练本地 YOLO 格式目标检测数据集。.
 
 修改下方“用户训练参数配置区”后，直接运行：
     python train.py
@@ -68,7 +68,7 @@ BEST_MAP50_FILENAME = "best_map50.pt"
 
 
 def format_elapsed_time(seconds: float) -> str:
-    """将秒数格式化为 HH:MM:SS。"""
+    """将秒数格式化为 HH:MM:SS。."""
     total_seconds = int(seconds)
     hours, remainder = divmod(total_seconds, 3600)
     minutes, secs = divmod(remainder, 60)
@@ -76,7 +76,7 @@ def format_elapsed_time(seconds: float) -> str:
 
 
 def save_training_time(model: YOLO, started_at: datetime, elapsed_seconds: float) -> Path:
-    """将本次训练进程的总耗时写入实际结果目录。"""
+    """将本次训练进程的总耗时写入实际结果目录。."""
     finished_at = datetime.now().astimezone()
     save_dir = Path(model.trainer.save_dir)
     duration_file = save_dir / "training_time.txt"
@@ -116,7 +116,7 @@ def finalize_best_map50(trainer) -> None:
 
 
 def validate_training_config() -> Path:
-    """提前检查常用参数和模型权重，提供清晰的错误信息。"""
+    """提前检查常用参数和模型权重，提供清晰的错误信息。."""
     if EPOCHS <= 0 or IMAGE_SIZE <= 0 or BATCH_SIZE == 0 or WORKERS < 0:
         raise ValueError("EPOCHS、IMAGE_SIZE 必须大于 0，BATCH_SIZE 不能为 0，WORKERS 不能小于 0。")
     if not 0 < FRACTION <= 1:
@@ -137,7 +137,7 @@ def validate_training_config() -> Path:
 
 
 def main() -> None:
-    """开始新训练，或从指定的 last.pt 断点续训。"""
+    """开始新训练，或从指定的 last.pt 断点续训。."""
     started_at = datetime.now().astimezone()
     start_time = time.perf_counter()
     checkpoint = validate_training_config()
