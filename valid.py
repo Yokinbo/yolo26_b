@@ -1,4 +1,4 @@
-"""验证 YOLO26，使用统一阈值扫描输出论文指标、推荐置信度和效率指标。"""
+"""验证 YOLO26，使用统一阈值扫描输出论文指标、推荐置信度和效率指标。."""
 
 from __future__ import annotations
 
@@ -21,7 +21,6 @@ from ultralytics import YOLO
 from ultralytics.models.yolo.detect.val import DetectionValidator
 from ultralytics.utils.metrics import box_iou
 from ultralytics.utils.torch_utils import get_flops
-
 
 # =============================================================================
 # 用户验证参数配置区（全部使用绝对路径）
@@ -59,7 +58,7 @@ EXIST_OK = False
 
 
 class ConfidenceSweepValidator(DetectionValidator):
-    """在官方验证过程中保留逐图预测与真值，供统一阈值扫描使用。"""
+    """在官方验证过程中保留逐图预测与真值，供统一阈值扫描使用。."""
 
     latest_instance = None
 
@@ -89,7 +88,7 @@ class ConfidenceSweepValidator(DetectionValidator):
 
 
 def format_elapsed_time(seconds: float) -> str:
-    total_seconds = int(round(seconds))
+    total_seconds = round(seconds)
     hours, remainder = divmod(total_seconds, 3600)
     minutes, secs = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
@@ -126,7 +125,7 @@ def validate_inputs() -> None:
 
 
 def metrics_at_threshold(records: list[dict[str, torch.Tensor]], threshold: float) -> dict:
-    """在给定置信度和 IoU 下逐图执行类别一致的一对一匹配。"""
+    """在给定置信度和 IoU 下逐图执行类别一致的一对一匹配。."""
     true_positives = false_positives = false_negatives = 0
 
     for record in records:
@@ -166,16 +165,8 @@ def metrics_at_threshold(records: list[dict[str, torch.Tensor]], threshold: floa
         false_positives += num_predictions - matches
         false_negatives += num_targets - matches
 
-    precision = (
-        true_positives / (true_positives + false_positives)
-        if true_positives + false_positives
-        else 0.0
-    )
-    recall = (
-        true_positives / (true_positives + false_negatives)
-        if true_positives + false_negatives
-        else 0.0
-    )
+    precision = true_positives / (true_positives + false_positives) if true_positives + false_positives else 0.0
+    recall = true_positives / (true_positives + false_negatives) if true_positives + false_negatives else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     return {
         "confidence": float(threshold),
@@ -189,7 +180,7 @@ def metrics_at_threshold(records: list[dict[str, torch.Tensor]], threshold: floa
 
 
 def smooth_curve(values: np.ndarray, fraction: float = 0.1) -> np.ndarray:
-    """使用与 Ultralytics 和 D-FINE 当前脚本一致的箱式平滑。"""
+    """使用与 Ultralytics 和 D-FINE 当前脚本一致的箱式平滑。."""
     filter_size = round(len(values) * fraction * 2) // 2 + 1
     padding = np.ones(filter_size // 2)
     padded = np.concatenate((padding * values[0], values, padding * values[-1]))
@@ -197,8 +188,8 @@ def smooth_curve(values: np.ndarray, fraction: float = 0.1) -> np.ndarray:
 
 
 def compute_confidence_metrics(records: list[dict[str, torch.Tensor]]) -> dict:
-    """按0.01步长扫描置信度，并返回平滑F1最大点和固定阈值指标。"""
-    count = int(round((CONFIDENCE_END - CONFIDENCE_START) / CONFIDENCE_STEP)) + 1
+    """按0.01步长扫描置信度，并返回平滑F1最大点和固定阈值指标。."""
+    count = round((CONFIDENCE_END - CONFIDENCE_START) / CONFIDENCE_STEP) + 1
     thresholds = np.linspace(CONFIDENCE_START, CONFIDENCE_END, count)
     curve = [metrics_at_threshold(records, float(value)) for value in thresholds]
     smoothed_f1 = smooth_curve(np.asarray([item["f1"] for item in curve], dtype=float))
@@ -218,7 +209,7 @@ def compute_confidence_metrics(records: list[dict[str, torch.Tensor]]) -> dict:
 
 
 def benchmark_single_image_fps(model: YOLO, validator: ConfidenceSweepValidator) -> dict:
-    """在统一效率置信度下测量单张图像的模型前向与NMS后处理速度。"""
+    """在统一效率置信度下测量单张图像的模型前向与NMS后处理速度。."""
     if not ENABLE_FPS_BENCHMARK or validator.benchmark_image is None:
         return {}
 
@@ -296,7 +287,7 @@ def save_paper_metrics(
     flops_g: float,
     speed_metrics: dict,
 ) -> Path:
-    """生成可以直接复制到论文或表格软件中的两张横向指标表。"""
+    """生成可以直接复制到论文或表格软件中的两张横向指标表。."""
     latency = speed_metrics.get("latency_ms_single_image_forward_post")
     fps = speed_metrics.get("FPS_single_image_forward_post")
     flops_text = f"{flops_g:.3f}" if flops_g > 0 else "N/A"
@@ -314,8 +305,7 @@ def save_paper_metrics(
         f"{fixed['recall']:>12.4f}{fixed['f1']:>12.4f}"
     )
     efficiency_header = (
-        f"{'Model':<16}{'Input':>8}{'Params(M)':>14}{'FLOPs(G)':>14}"
-        f"{'Latency(ms/image)':>22}{'FPS':>14}"
+        f"{'Model':<16}{'Input':>8}{'Params(M)':>14}{'FLOPs(G)':>14}{'Latency(ms/image)':>22}{'FPS':>14}"
     )
     efficiency_row = (
         f"{PAPER_MODEL_NAME:<16}{IMAGE_SIZE:>8}{model_parameters / 1e6:>14.3f}"
@@ -389,9 +379,7 @@ def save_reports(
         "FLOPs_G": flops_g if flops_g > 0 else None,
         "validation_elapsed_seconds": elapsed_seconds,
     }
-    (save_dir / "metrics.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    (save_dir / "metrics.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     finished_at = datetime.now().astimezone()
     lines = [
@@ -419,7 +407,9 @@ def save_reports(
         "",
         "四、效率参考指标",
         f"模型参数量 (M)                 : {model_parameters / 1e6:.3f}",
-        f"FLOPs (G)                       : {flops_g:.3f}" if flops_g > 0 else "FLOPs (G)                       : N/A（未安装 ultralytics-thop）",
+        f"FLOPs (G)                       : {flops_g:.3f}"
+        if flops_g > 0
+        else "FLOPs (G)                       : N/A（未安装 ultralytics-thop）",
         f"效率测试置信度                  : {EFFICIENCY_CONFIDENCE:.2f}",
         *[f"{name:30s}: {value:.4f}" for name, value in speed_metrics.items()],
         "",
